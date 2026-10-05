@@ -1,12 +1,15 @@
 package org.example;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 public class Server {
+
+    private static List<Socket> clients = Collections.synchronizedList(new ArrayList<>());
 
     public static void main(String[] args) {
 
@@ -23,11 +26,16 @@ public class Server {
             while (true) {
                 Socket clientSocket = socket.accept();
                 System.out.println("Client connected");
+                clients.add(clientSocket);
+                System.out.println("Clients connected: " + clients.size());
 
                 Runnable handleClient = () -> {
                     try {
                         BufferedReader reader = new BufferedReader(
                                 new InputStreamReader(clientSocket.getInputStream())
+                        );
+                        PrintWriter writer = new PrintWriter(
+                                new OutputStreamWriter(clientSocket.getOutputStream())
                         );
 
                         while (true) {
@@ -39,6 +47,10 @@ public class Server {
                         }
                     } catch (IOException e) {
                         System.out.println("Connection lost");
+                    }
+                    finally {
+                        clients.remove(clientSocket);
+                        System.out.println("Clients connected: " + clients.size());
                     }
                 };
                 Thread newClientThread = new Thread(handleClient);
