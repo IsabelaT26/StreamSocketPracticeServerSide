@@ -9,12 +9,11 @@ import java.util.List;
 
 public class Server {
 
-    private static List<ClientConnection> clients =
+    private static final List<ClientConnection> clients =
             Collections.synchronizedList(new ArrayList<>());
 
     public static void main(String[] args) {
 
-        ServerSocket serverSocket = null;
         int port = 2000;
 
         if (args.length >= 1) {
@@ -26,62 +25,113 @@ public class Server {
             }
         }
 
-        try {
-            serverSocket = new ServerSocket(port);
-            System.out.println("Server started at " + port);
+        final int serverPort = port;
+
+        try (ServerSocket serverSocket = new ServerSocket(serverPort)) {
+
+            String host = serverSocket.getInetAddress()
+                    .getLocalHost()
+                    .getHostName();
+
+            printStatus(host, serverPort);
+
             while (true) {
+
                 Socket clientSocket = serverSocket.accept();
-                System.out.println("Client connected");
-                ClientConnection client = new ClientConnection(clientSocket);
+
+                ClientConnection client =
+                        new ClientConnection(clientSocket);
+
                 clients.add(client);
-                System.out.println("Clients connected: " + clients.size());
+
+                System.out.println(
+                        "Client connected: " +
+                                clientSocket.getInetAddress()
+                );
+
+                printStatus(host, serverPort);
 
                 Runnable handleClient = () -> {
+
                     try {
-                        BufferedReader reader = new BufferedReader(
-                                new InputStreamReader(
-                                        clientSocket.getInputStream(),
-                                        "ISO-8859-1"
-                                )
+                        BufferedReader reader =
+                                new BufferedReader(
+                                        new InputStreamReader(
+                                                clientSocket.getInputStream(),
+                                                "ISO-8859-1"
+                                        )
+                                );
+
+                        String message;
+
+                        while ((message = reader.readLine()) != null) {
+
+                            System.out.println(
+                                    "Client " +
+                                            clientSocket.getInetAddress() +
+                                            ": " +
+                                            message
+                            );
+
+                            broadcast(message);
+                        }
+
+                    } catch (IOException e) {
+                        System.out.println(
+                                "Connection lost: " +
+                                        clientSocket.getInetAddress()
                         );
 
-
-                        while (true) {
-                            String message = reader.readLine();
-                            if (message == null) {
-                                break;
-                            }
-                            System.out.println("Client " + clientSocket.getInetAddress() + ": " + message);
-
-                            synchronized (clients) {
-                                for (ClientConnection c : clients) {
-                                    c.getWriter().println(message);
-                                }
-                            }
-
-                        }
-                    } catch (IOException e) {
-                        System.out.println("Connection lost");
                     } finally {
-                        clients.remove(client);
+
+                        removeClient(client);
 
                         try {
                             clientSocket.close();
                         } catch (IOException e) {
-                            System.out.println("Could not close client socket");
+                            System.out.println(
+                                    "Could not close client socket"
+                            );
                         }
 
-                        System.out.println("Clients connected: " + clients.size());
+                        printStatus(host, serverPort);
                     }
                 };
-                Thread newClientThread = new Thread(handleClient);
-                newClientThread.start();
-            }
-        } catch (IOException e) {
-            System.out.println("Error");
-        }
 
+                Thread clientThread =
+                        new Thread(handleClient);
+
+                clientThread.start();
+            }
+
+        } catch (IOException e) {
+            System.out.println("Server error.");
+        }
     }
 
+    private static synchronized void broadcast(String message) {
+        for (ClientConnection client : clients) {
+            client.getWriter().println(message);
+        }
+    }
 
+    private static synchronized void removeClient(
+            ClientConnection client
+    ) {
+        clients.remove(client);
+    }
+
+    private static void printStatus(
+            String host,
+            int port
+    ) {
+        System.out.println(
+                "Server running on " +
+                        host +
+                        ":" +
+                        port +
+                        " | Clients connected: " +
+                        clients.size()
+        );
+    }
 }
