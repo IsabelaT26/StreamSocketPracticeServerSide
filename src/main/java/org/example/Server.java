@@ -1,6 +1,8 @@
 package org.example;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.net.Socket;
 
@@ -23,7 +25,21 @@ public class Server {
                 System.out.println("Client connected");
 
                 Runnable handleClient = () -> {
-                    // A loop than handles client communication
+                    try {
+                        BufferedReader reader = new BufferedReader(
+                                new InputStreamReader(clientSocket.getInputStream())
+                        );
+
+                        while (true) {
+                            String message = reader.readLine();
+                            if(message == null){
+                                break;
+                            }
+                            System.out.println("Client " + clientSocket.getInetAddress() + ": " + message);
+                        }
+                    } catch (IOException e) {
+                        System.out.println("Connection lost");
+                    }
                 };
                 Thread newClientThread = new Thread(handleClient);
                 newClientThread.start();
