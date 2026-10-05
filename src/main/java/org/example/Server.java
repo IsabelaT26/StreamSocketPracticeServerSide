@@ -32,11 +32,12 @@ public class Server {
                 Runnable handleClient = () -> {
                     try {
                         BufferedReader reader = new BufferedReader(
-                                new InputStreamReader(clientSocket.getInputStream())
+                                new InputStreamReader(
+                                        clientSocket.getInputStream(),
+                                        "ISO-8859-1"
+                                )
                         );
-                        PrintWriter writer = new PrintWriter(
-                                new OutputStreamWriter(clientSocket.getOutputStream())
-                        );
+
 
                         while (true) {
                             String message = reader.readLine();
@@ -44,12 +45,28 @@ public class Server {
                                 break;
                             }
                             System.out.println("Client " + clientSocket.getInetAddress() + ": " + message);
+                            synchronized (clients) {
+                                for (Socket c : clients) {
+                                    PrintWriter writer = new PrintWriter(
+                                            new OutputStreamWriter(
+                                                    c.getOutputStream(),
+                                                    "ISO-8859-1"
+                                            ), true
+                                    );
+                                    writer.println(message);
+                                }
+                            }
                         }
                     } catch (IOException e) {
                         System.out.println("Connection lost");
                     }
                     finally {
                         clients.remove(clientSocket);
+                        try {
+                            clientSocket.close();
+                        } catch (IOException e) {
+                            System.out.println("Could not close client socket");
+                        }
                         System.out.println("Clients connected: " + clients.size());
                     }
                 };
