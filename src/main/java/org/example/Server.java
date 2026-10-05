@@ -48,28 +48,29 @@ public class Server {
 
                         while (true) {
                             String message = reader.readLine();
-                            if(message == null){
+                            if (message == null) {
                                 break;
                             }
                             System.out.println("Client " + clientSocket.getInetAddress() + ": " + message);
+
                             synchronized (clients) {
-                                synchronized (clients) {
-                                    for (ClientConnection c : clients) {
-                                        c.getWriter().println(message);
-                                    }
+                                for (ClientConnection c : clients) {
+                                    c.getWriter().println(message);
                                 }
                             }
+
                         }
                     } catch (IOException e) {
                         System.out.println("Connection lost");
-                    }
-                    finally {
-                        clients.remove(clientSocket);
+                    } finally {
+                        clients.remove(client);
+
                         try {
                             clientSocket.close();
                         } catch (IOException e) {
                             System.out.println("Could not close client socket");
                         }
+
                         System.out.println("Clients connected: " + clients.size());
                     }
                 };
