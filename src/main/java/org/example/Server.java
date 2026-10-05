@@ -9,24 +9,31 @@ import java.util.List;
 
 public class Server {
 
-    private static List<Socket> clients = Collections.synchronizedList(new ArrayList<>());
+    private static List<ClientConnection> clients =
+            Collections.synchronizedList(new ArrayList<>());
 
     public static void main(String[] args) {
 
-        ServerSocket socket = null;
+        ServerSocket serverSocket = null;
         int port = 2000;
 
         if (args.length >= 1) {
-            port = Integer.parseInt(args[0]);
+            try {
+                port = Integer.parseInt(args[0]);
+            } catch (NumberFormatException e) {
+                System.out.println("Invalid port number.");
+                return;
+            }
         }
 
         try {
-            socket = new ServerSocket(port);
+            serverSocket = new ServerSocket(port);
             System.out.println("Server started at " + port);
             while (true) {
-                Socket clientSocket = socket.accept();
+                Socket clientSocket = serverSocket.accept();
                 System.out.println("Client connected");
-                clients.add(clientSocket);
+                ClientConnection client = new ClientConnection(clientSocket);
+                clients.add(client);
                 System.out.println("Clients connected: " + clients.size());
 
                 Runnable handleClient = () -> {
@@ -46,14 +53,10 @@ public class Server {
                             }
                             System.out.println("Client " + clientSocket.getInetAddress() + ": " + message);
                             synchronized (clients) {
-                                for (Socket c : clients) {
-                                    PrintWriter writer = new PrintWriter(
-                                            new OutputStreamWriter(
-                                                    c.getOutputStream(),
-                                                    "ISO-8859-1"
-                                            ), true
-                                    );
-                                    writer.println(message);
+                                synchronized (clients) {
+                                    for (ClientConnection c : clients) {
+                                        c.getWriter().println(message);
+                                    }
                                 }
                             }
                         }
